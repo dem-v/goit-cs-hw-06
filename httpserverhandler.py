@@ -49,21 +49,27 @@ class HttpHandler(BaseHTTPRequestHandler):
         logging.debug(data_parse)
         data_dict = {key: value for key, value in [el.split('=') for el in data_parse.split('&')]}
         logging.debug(data_dict)
-        self.send_message_to_socket(str(data_dict))
-        self.send_response(302)
-        self.send_header('Location', '/message.html')
-        self.end_headers()
+        if self.send_message_to_socket(str(data_dict)):
+            self.send_response(302)
+            self.send_header('Location', '/message.html')
+            self.end_headers()
+        else:
+            self.send_response(302)
+            self.send_header('Location', '/error.html')
+            self.end_headers()
 
-    async def send_message_async(self, message: str):
+    async def send_message_async(self, message: str) -> bool:
         uri = self.SOCKET_URI
         async with websockets.connect(uri) as websocket:
             await websocket.send(message)
             resp = await websocket.recv()
             if resp != 'OK':
                 logging.info(f'Error: {resp}')
+                return False
+            return True
 
-    def send_message_to_socket(self, message: str):
-        asyncio.run(self.send_message_async(message))
+    def send_message_to_socket(self, message: str) -> bool:
+        return asyncio.run(self.send_message_async(message))
 
 
 def run_server(server_class=HTTPServer, handler_class=HttpHandler):
